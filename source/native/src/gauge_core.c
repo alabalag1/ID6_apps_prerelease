@@ -163,3 +163,9 @@ int bd_bar(unsigned i, double x) {
     if (y > 1000) y = 1000;
     return (int)(y + .5);
 }
+unsigned sd_sweep_bar(int rpm, unsigned shift) {
+    unsigned bars = rpm > 0 ? ((unsigned)rpm * 128u + 4000u) / 8000u : 0u;
+    if (bars > 128u) bars = 128u;
+    if (shift) bars = ((bars + (1u << (shift - 1u))) >> shift) << shift;
+    return bars > 128u ? 128u : bars;
+}

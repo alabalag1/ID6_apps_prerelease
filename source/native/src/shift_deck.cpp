@@ -12,8 +12,14 @@ namespace {
 const unsigned kShiftPoll=0x53484654u;
 const char kShiftWorker[]="/var/opt/hmi/data/ID5/Plugins/ShiftDeck/shift-deck-qnx";
 #ifdef NATIVE_SHIFT_SMOOTH
-const unsigned kSweepSteps=128, kSweepBase=56400, kSweepAlert=56529;
+const unsigned kSweepBase=56400, kSweepAlert=56529;
 const unsigned kEaseMs=50;
+#endif
+// G30 port: iDrive pinned its CPU ~25 s after the bar walked through many of the 258 full-width
+// (1104x76, ~335 KB decoded each) sweep images. Round the bar to 1<<SHIFT_BAR_SHIFT steps: 3 -> 34 images.
+// ponytail: unverified on the car; -DSHIFT_BAR_SHIFT=0 restores every step for the A/B test.
+#ifndef SHIFT_BAR_SHIFT
+#define SHIFT_BAR_SHIFT 3
 #endif
 }
 
@@ -28,6 +34,9 @@ class ShiftDeck : public bmw::PluginApp {
     unsigned bar_, lights_;
     int rpm_,kph_;
     bool shift_;
+#ifdef SHIFT_DEMO
+    unsigned demo_phase_;
+#endif
 #ifdef NATIVE_SHIFT_SMOOTH
     bool metric_;
     double rpm_from_;
@@ -79,8 +88,7 @@ class ShiftDeck : public bmw::PluginApp {
         int displayed_rpm=rpm;
 #ifdef NATIVE_SHIFT_SMOOTH
         if (rpm>=0) displayed_rpm=static_cast<int>(animatedRpm(now)+.5);
-        unsigned bars=displayed_rpm>0 ? (displayed_rpm*kSweepSteps+4000)/8000 : 0;
-        if (bars>kSweepSteps) bars=kSweepSteps;
+        unsigned bars=sd_sweep_bar(displayed_rpm,SHIFT_BAR_SHIFT);
         unsigned image=(shift ? kSweepAlert : kSweepBase)+bars;
 #else
         unsigned bars=rpm>0 ? static_cast<unsigned>(rpm+125)/250 : 0;
@@ -164,6 +172,9 @@ public:
           visible_(false),target_(kDefaultTarget),retry_at_(0),bar_(0),lights_(0),
           rpm_(-2),kph_(-2),shift_(false) {
         memset(&frame_,0,sizeof frame_);
+#ifdef SHIFT_DEMO
+        demo_phase_=0;
+#endif
 #ifdef NATIVE_SHIFT_SMOOTH
         metric_=true;   // G30 port: km/h by default
         rpm_from_=0;
@@ -227,6 +238,20 @@ public:
         if (generation!=generation_ || socket_<0) return true;
         reap();
         uint64_t now=bd_mono_ms();
+#ifdef SHIFT_DEMO
+        // Test build: no worker, no gateway. A fake 0 -> 8000 -> 0 rpm ramp every 100 ticks (10 s)
+        // walks the bar through every sweep image, with the ignition on only.
+        if (visible_) {
+            if (++demo_phase_>=100) demo_phase_=0;
+            frame_.sampled_ms=now;
+            frame_.rpm=static_cast<int>(demo_phase_<50 ? demo_phase_ : 100-demo_phase_)*160;
+            frame_.kph=frame_.rpm>>6;
+            rpm_started_=0;
+        }
+        draw(now);
+        postPoll();
+        return true;
+#endif
         if (visible_ && child_<=0 && now>=retry_at_) {
             const char* args[]={kShiftWorker,"--host","169.254.120.122",0};
             child_=launch(args,-1);

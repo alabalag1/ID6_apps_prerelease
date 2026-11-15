@@ -27,6 +27,9 @@ int bd_is_fresh(const bd_frame *f, unsigned i, uint64_t elapsed_ms);
 double bd_display_value(unsigned i, double value, int metric);
 int bd_bar(unsigned i, double value); /* normalized 0..1000, independent of units */
 const char *bd_unit(unsigned i, int metric);
+/* ShiftDeck sweep bar step 0..128 for 0..8000 rpm, rounded to a multiple of 1<<shift.
+ * A shift (not a divisor) because a runtime division calls libgcc helpers the head unit lacks. */
+unsigned sd_sweep_bar(int rpm, unsigned shift);
 #ifdef __cplusplus
 }
 #endif

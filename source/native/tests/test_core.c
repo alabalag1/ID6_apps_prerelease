@@ -51,6 +51,18 @@ static void test_parser_boundaries(void) {
     { const char embedded_nul[]="NBG2 1 0 31 1 18 0 14 0 0 0 40 0 90 0\0junk";
       assert(!bd_parse(embedded_nul,sizeof embedded_nul-1,&out)); }
 }
+static void test_sweep_bar(void) {
+    unsigned seen[129]={0}, distinct=0, rpm;
+    for (rpm=0;rpm<=16383;rpm+=10) {
+        unsigned exact=sd_sweep_bar((int)rpm,0), coarse=sd_sweep_bar((int)rpm,3);
+        assert(exact==(rpm*128+4000)/8000 || (rpm>8000 && exact==128));
+        assert(coarse<=128 && coarse%8==0);
+        assert(coarse+4>=exact && coarse<=exact+4);
+        if (!seen[coarse]++) ++distinct;
+    }
+    assert(distinct==17);   /* x2 for the alert colour: 34 sweep images instead of 258 */
+    assert(sd_sweep_bar(-1,3)==0 && sd_sweep_bar(8000,3)==128);
+}
 int main(void) {
     /* Actual payload examples in OBDb's 2016 3-Series captures (CC BY-SA 4.0). */
     const unsigned char baro[]={0x63,0xca}, pressure[]={0x31,0xe5}, timing[]={0,0x4e};
@@ -82,6 +94,7 @@ int main(void) {
           assert(!bd_decode_did(dids[i],extra,width+1,&x) && x==123);
       } }
     test_parser_boundaries();
+    test_sweep_bar();
     memset(&f,0,sizeof f); f.seq=123; f.valid=31; f.sent_ms=1234567890123ULL;
     f.value[0]=18.25; f.value[1]=14.7;
     f.value[2]=-5; f.value[3]=49.5; f.value[4]=94;
