@@ -59,7 +59,7 @@ class ShiftDeck : public bmw::PluginApp {
         bmw::Parcel data;
         data.writeUInt32(kShiftPoll);
         data.writeUInt32(generation_);
-        post(bmw::Message(0x40000003u,data),visible_ ? 16u : 150u);
+        post(bmw::Message(0x40000003u,data),visible_ ? 100u : 150u);   // G30 port: 16 ms saturated the HMI partition
     }
     void digits(unsigned model, unsigned width, const char* text, unsigned base, bool center) {
         unsigned length=static_cast<unsigned>(strlen(text));
@@ -165,7 +165,7 @@ public:
           rpm_(-2),kph_(-2),shift_(false) {
         memset(&frame_,0,sizeof frame_);
 #ifdef NATIVE_SHIFT_SMOOTH
-        metric_=false;
+        metric_=true;   // G30 port: km/h by default
         rpm_from_=0;
         rpm_started_=0;
 #endif
@@ -228,7 +228,7 @@ public:
         reap();
         uint64_t now=bd_mono_ms();
         if (visible_ && child_<=0 && now>=retry_at_) {
-            const char* args[]={kShiftWorker,"--host","169.254.21.3",0};
+            const char* args[]={kShiftWorker,"--host","169.254.120.122",0};
             child_=launch(args,-1);
             retry_at_=now+1000;
         }

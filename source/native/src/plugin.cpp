@@ -29,9 +29,9 @@ namespace {
 // Parcel and dispatches through the primary invokeDataUpdate virtual.
 const unsigned kDataUpdateMessage = 0x40000003u;
 const unsigned kPollKey = 0x4244504cu; // BDPL, private to this app
-const unsigned kActivePollIntervalMs = 25u;
+const unsigned kActivePollIntervalMs = 250u;   // G30 port: 25 ms saturated the HMI partition (aps "interaction" 93%)
 const unsigned kIdlePollIntervalMs = 250u;
-const char kGateway[] = "169.254.21.3";
+const char kGateway[] = "169.254.120.122";
 const char kCollector[] = "/var/opt/hmi/data/ID5/Plugins/BoostDeck/boostdeck-collector-qnx";
 const unsigned kBarCount = sizeof(kDialScales)/sizeof(kDialScales[0]);
 #ifdef PERF_LAB
@@ -68,7 +68,7 @@ public:
           received_(0), collector_(-1), stopping_(false), gauges_visible_(false),
           color_(0),
 #ifdef PERF_LAB
-          metric_(false),
+          metric_(true),   // G30 port: metric by default
 #endif
           retry_at_(0) {
         resetDisplay();
